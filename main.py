@@ -9,71 +9,102 @@ from matplotlib import pyplot as plt
 
 # Potential problem: does not take into account non-trade fees (Stake Black).
 
+# Controls which data should be read
+hatch = True
+stake = False
+sharesies = False
+
 
 # Reads in trades from hatch as pandas dataframe. File format works as of 5/7/21.
-hatchTradeFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'order-transaction*.csv')
-hatchTrades = pd.read_csv(hatchTradeFilePath[0])
-# Simplifying hatchTrades dataframe.
-hatchTrades = hatchTrades.assign(Fees=3) # Forms a new column containing the flat $3 fee for each trade.
-hatchTrades = hatchTrades.drop(['Comments'], axis=1) # Removes the comments column.
-hatchTrades = hatchTrades.rename({'Instrument Code' : 'Ticker', 'Transaction Type' : 'Type'}, axis=1)
+if hatch:
+    hatchTradeFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'order-transaction*.csv')
+    hatchTrades = pd.read_csv(hatchTradeFilePath[0])
+    # Simplifying hatchTrades dataframe.
+    hatchTrades = hatchTrades.assign(Fees=3) # Forms a new column containing the flat $3 fee for each trade.
+    hatchTrades = hatchTrades.drop(['Comments'], axis=1) # Removes the comments column.
+    hatchTrades = hatchTrades.rename({'Instrument Code' : 'Ticker', 'Transaction Type' : 'Type'}, axis=1)
+
+    # Reads in deposit data from Hatch
+    # The .csv file to be read is manually made. Hatch does not provide any deposit information as of 5/7/21.
+    hatchDepositFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'Hatch Deposit Data.csv')
+    hatchDeposits = pd.read_csv(hatchDepositFilePath[0])    
 
 
-# Reads in trades from Stake as pandasdataframe. File format works as of 5/7/21.
-stakeFilePath = glob('trade reports' + os.sep + 'stake' + os.sep + '*.xlsx')
-stakeTrades = pd.read_excel(stakeFilePath[0], sheet_name='Trades')
-# Simplifying stakeTrades dataframe.
-# Removing useless data:
-stakeTrades = stakeTrades.drop(['DATE (US)', 'REFERENCE', 'TAF FEE (USD)', 'SEC FEE (USD)', 'VALUE (USD)',
-                                'FX RATE', 'LOCAL CURRENCY VALUE'], axis=1) 
-# Renaming data to match the hatchTrades convention:
-stakeTrades = stakeTrades.rename({'SETTLEMENT DATE (US)' : 'Trade Date', 'SIDE' : 'Type', 
-                                'UNITS' : 'Quantity', 'EFFECTIVE PRICE (USD)' : 'Price', 
-                                'BROKERAGE FEE (USD)' : 'Fees', 'SYMBOL' : 'Ticker'}, axis=1) 
-# Reassigning B/S values in Type to BUY/SELL to match hatch convention:
-stakeTrades['Type'] = np.where(stakeTrades['Type'] == 'B', 'BUY', 'SELL')
+
+if stake:
+    # Reads in trades from Stake as pandasdataframe. File format works as of 5/7/21.
+    stakeFilePath = glob('trade reports' + os.sep + 'stake' + os.sep + '*.xlsx')
+    stakeTrades = pd.read_excel(stakeFilePath[0], sheet_name='Trades')
+    # Simplifying stakeTrades dataframe.
+    # Removing useless data:
+    stakeTrades = stakeTrades.drop(['DATE (US)', 'REFERENCE', 'TAF FEE (USD)', 'SEC FEE (USD)', 'VALUE (USD)',
+                                    'FX RATE', 'LOCAL CURRENCY VALUE'], axis=1) 
+    # Renaming data to match the hatchTrades convention:
+    stakeTrades = stakeTrades.rename({'SETTLEMENT DATE (US)' : 'Trade Date', 'SIDE' : 'Type', 
+                                    'UNITS' : 'Quantity', 'EFFECTIVE PRICE (USD)' : 'Price', 
+                                    'BROKERAGE FEE (USD)' : 'Fees', 'SYMBOL' : 'Ticker'}, axis=1) 
+    # Reassigning B/S values in Type to BUY/SELL to match hatch convention:
+    stakeTrades['Type'] = np.where(stakeTrades['Type'] == 'B', 'BUY', 'SELL')
+
+    # Reads in deposit data from Stake
+    # The provided Stake report does not contain the NZD amounts as of 5/7/21. This needs to be added manually.
+    stakeDepositFilePath = stakeFilePath
+    stakeDeposits = pd.read_excel(stakeDepositFilePath[0], sheet_name='Deposits & Withdrawals')
+    # Simplifying stakeDeposits dataframe:
+    # Removing useless data.
+    stakeDeposits = stakeDeposits.drop(['REFERENCE', 'FUNDING METHOD'], axis=1)
+    # Renaming data.
+    stakeDeposits = stakeDeposits.rename({'DATE (US)' : 'Date', 'FUNDING TYPE' : 'Type', 
+                                        'RECEIVE AMOUNT (USD)' : 'USD Quantity'}, axis=1)
+
 
 
 # Reads in trades from Sharesies 
 # UNDER CONSTRUCTION
+if sharesies:
+    # Reads in trades from Sharesies.
+
+    # Reads in deposit data from Sharesies
+    # UNDER CONSTRUCTION
+    pass
+
+if hatch and stake:
+    # Combining trades dataframes
+    trades = pd.concat([hatchTrades, stakeTrades], ignore_index=True)
+    # Making Trade date be stored as datetime.
+    trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
+
+    # Combining deposits dataframes
+    deposits = pd.concat([hatchDeposits, stakeDeposits], ignore_index=True)
+    # Making date be stored as datetime.
+    deposits['Date'] = pd.to_datetime(deposits['Date'])
+
+elif hatch:
+    trades = hatchTrades
+    # Making Trade date be stored as datetime.
+    trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
+
+    deposits = hatchDeposits
+    # Making date be stored as datetime.
+    deposits['Date'] = pd.to_datetime(deposits['Date'])
+
+elif stake:
+    trades = stakeTrades
+    # Making Trade date be stored as datetime.
+    trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
+
+    deposits = stakeDeposits
+    # Making date be stored as datetime.
+    deposits['Date'] = pd.to_datetime(deposits['Date'])
+
+elif sharesies:
+    # UNDER CONSTRUCTION
+    pass
 
 
-# Combining trades dataframes
-trades = pd.concat([hatchTrades, stakeTrades], ignore_index=True)
-# Making Trade date be stored as datetime.
-trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
-
-
-# Reads in deposit data from Hatch
-# The .csv file to be read is manually made. Hatch does not provide any deposit information as of 5/7/21.
-hatchDepositFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'Hatch Deposit Data.csv')
-hatchDeposits = pd.read_csv(hatchDepositFilePath[0])
-
-
-# Reads in deposit data from Stake
-# The provided Stake report does not contain the NZD amounts as of 5/7/21. This needs to be added manually.
-stakeDepositFilePath = stakeFilePath
-stakeDeposits = pd.read_excel(stakeDepositFilePath[0], sheet_name='Deposits & Withdrawals')
-# Simplifying stakeDeposits dataframe:
-# Removing useless data.
-stakeDeposits = stakeDeposits.drop(['REFERENCE', 'FUNDING METHOD'], axis=1)
-# Renaming data.
-stakeDeposits = stakeDeposits.rename({'DATE (US)' : 'Date', 'FUNDING TYPE' : 'Type', 
-                                    'RECEIVE AMOUNT (USD)' : 'USD Quantity'}, axis=1)
-
-
-# Reads in deposit data from Sharesies
-# UNDER CONSTRUCTION
-
-
-# Combining deposits dataframes
-deposits = pd.concat([hatchDeposits, stakeDeposits], ignore_index=True)
-# Making date be stored as datetime.
-deposits['Date'] = pd.to_datetime(deposits['Date'])
 
 # Finding the min date.
 fromDate = deposits['Date'].min()
-
 # Finding today's date.
 todayDate = date.today()
 
