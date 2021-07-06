@@ -10,8 +10,8 @@ from matplotlib import pyplot as plt
 # Potential problem: does not take into account non-trade fees (Stake Black).
 
 # Controls which data should be read
-hatch = True
-stake = False
+hatch = False
+stake = True
 sharesies = False
 
 
@@ -111,6 +111,8 @@ todayDate = date.today()
 
 # Imports USD exchange data.
 adjCloseUSD = yf.download('NZDUSD=X', start=fromDate, endDate=todayDate)['Adj Close']
+# Imports NZD exchange data.
+adjCloseNZD = yf.download('USDNZD=X', start=fromDate, endDate=todayDate)['Adj Close']
 
 
 # Forms pandas dataframe containing amount of USD held over time.
@@ -201,19 +203,34 @@ for i in trades.index:
         raise ValueError('Invalid Order type')
 
 
+# forward filling investedStockVal and forex data with missing values.
+investedStockVal = investedStockVal.reindex(pd.date_range(fromDate, todayDate)).fillna(method='ffill')
+adjCloseNZD = adjCloseNZD.reindex(pd.date_range(fromDate, todayDate)).fillna(method='ffill')
+adjCloseUSD = adjCloseUSD.reindex(pd.date_range(fromDate, todayDate)).fillna(method='ffill')
+cash = cash.reindex(pd.date_range(fromDate, todayDate)).fillna(method='ffill')
+
+
 # Creating infoNZD dataframe containing summarised important information in NZD.
 infoNZD = pd.DataFrame(index=investedStockVal.index)
-infoNZD['Total value of USD and stocks ($NZD)'] = (investedStockVal['USD stock value'] + cash['USD cash held']) / adjCloseUSD
+# infoNZD['Total value of USD and stocks ($NZD)'] = (investedStockVal['USD stock value'] + cash['USD cash held']) * adjCloseNZD
+infoNZD['Total value of USD and stocks ($NZD)'] = (investedStockVal['USD stock value'].add(cash['USD cash held'])).mul(adjCloseNZD)
 infoNZD['Total initial NZD invested ($NZD)'] = cash['NZD invested']
-infoNZD['Profit/Loss ($NZD)'] = infoNZD['Total value of USD and stocks ($NZD)'] - infoNZD['Total initial NZD invested ($NZD)']
-infoNZD['% Profit/Loss'] = infoNZD['Profit/Loss ($NZD)'] / infoNZD['Total initial NZD invested ($NZD)']
+# infoNZD['Profit/Loss ($NZD)'] = infoNZD['Total value of USD and stocks ($NZD)'] - infoNZD['Total initial NZD invested ($NZD)']
+infoNZD['Profit/Loss ($NZD)'] = infoNZD['Total value of USD and stocks ($NZD)'].sub(infoNZD['Total initial NZD invested ($NZD)'])
+# infoNZD['% Profit/Loss'] = infoNZD['Profit/Loss ($NZD)'] / infoNZD['Total initial NZD invested ($NZD)']
+infoNZD['% Profit/Loss'] = infoNZD['Profit/Loss ($NZD)'].div(infoNZD['Total initial NZD invested ($NZD)'])
+
+
 
 # Creating infoUSD dataframe containing summarised important information in USD.
 infoUSD = pd.DataFrame(index=investedStockVal.index)
-infoUSD['Total value of USD and stocks ($USD)'] = investedStockVal['USD stock value'] + cash['USD cash held']
+# infoUSD['Total value of USD and stocks ($USD)'] = investedStockVal['USD stock value'] + cash['USD cash held']
+infoUSD['Total value of USD and stocks ($USD)'] = investedStockVal['USD stock value'].add(cash['USD cash held'])
 infoUSD['Total initial USD invested ($USD)'] = cash['initial USD bought']
-infoUSD['Profit/Loss ($USD)'] = infoUSD['Total value of USD and stocks ($USD)'] - infoUSD['Total initial USD invested ($USD)']
-infoUSD['% Profit/Loss'] = infoUSD['Profit/Loss ($USD)'] / infoUSD['Total initial USD invested ($USD)']
+# infoUSD['Profit/Loss ($USD)'] = infoUSD['Total value of USD and stocks ($USD)'] - infoUSD['Total initial USD invested ($USD)']
+infoUSD['Profit/Loss ($USD)'] = infoUSD['Total value of USD and stocks ($USD)'].sub(infoUSD['Total initial USD invested ($USD)'])
+# infoUSD['% Profit/Loss'] = infoUSD['Profit/Loss ($USD)'] / infoUSD['Total initial USD invested ($USD)']
+infoUSD['% Profit/Loss'] = infoUSD['Profit/Loss ($USD)'].div(infoUSD['Total initial USD invested ($USD)'])
 
 
 # Forming the NZD plots
