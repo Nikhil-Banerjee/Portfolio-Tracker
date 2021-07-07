@@ -10,10 +10,12 @@ from matplotlib import pyplot as plt
 # Potential problem: does not take into account non-trade fees (Stake Black).
 
 # Controls which data should be read
-hatch = False
+hatch = True
 stake = True
-sharesies = False
+sharesies = True
 
+tradesArray = []
+depositsArray = []
 
 # Reads in trades from hatch as pandas dataframe. File format works as of 5/7/21.
 if hatch:
@@ -21,13 +23,18 @@ if hatch:
     hatchTrades = pd.read_csv(hatchTradeFilePath[0])
     # Simplifying hatchTrades dataframe.
     hatchTrades = hatchTrades.assign(Fees=3) # Forms a new column containing the flat $3 fee for each trade.
+    hatchTrades = hatchTrades.assign(Currency='USD')
     hatchTrades = hatchTrades.drop(['Comments'], axis=1) # Removes the comments column.
     hatchTrades = hatchTrades.rename({'Instrument Code' : 'Ticker', 'Transaction Type' : 'Type'}, axis=1)
+
+    tradesArray.append(hatchTrades)
 
     # Reads in deposit data from Hatch
     # The .csv file to be read is manually made. Hatch does not provide any deposit information as of 5/7/21.
     hatchDepositFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'Hatch Deposit Data.csv')
     hatchDeposits = pd.read_csv(hatchDepositFilePath[0])    
+
+    depositsArray.append(hatchDeposits)
 
 
 
@@ -45,6 +52,10 @@ if stake:
                                     'BROKERAGE FEE (USD)' : 'Fees', 'SYMBOL' : 'Ticker'}, axis=1) 
     # Reassigning B/S values in Type to BUY/SELL to match hatch convention:
     stakeTrades['Type'] = np.where(stakeTrades['Type'] == 'B', 'BUY', 'SELL')
+    # Forming column containing currency of stocks.
+    stakeTrades = stakeTrades.assign(Currency='USD')
+
+    tradesArray.append(stakeTrades)
 
     # Reads in deposit data from Stake
     # The provided Stake report does not contain the NZD amounts as of 5/7/21. This needs to be added manually.
@@ -56,55 +67,64 @@ if stake:
     # Renaming data.
     stakeDeposits = stakeDeposits.rename({'DATE (US)' : 'Date', 'FUNDING TYPE' : 'Type', 
                                         'RECEIVE AMOUNT (USD)' : 'USD Quantity'}, axis=1)
+    
+    depositsArray.append(stakeDeposits)
 
 
 
 # Reads in trades from Sharesies 
-# UNDER CONSTRUCTION
+# No manual input of data required at all as of 7/7/21.
 if sharesies:
     # Reads in trades from Sharesies.
+    sharesiesFilePath = glob('trade reports' + os.sep + 'sharesies' + os.sep + 'transaction-report.csv')
+    sharesiesTrades = pd.read_csv(sharesiesFilePath[0])
+    # Simplifying sharesiesTrades dataframe:
+    # Renaming data to match convention:
+    sharesiesTrades = sharesiesTrades.rename({'Instrument code' : 'Ticker', 'Transaction type' : 'Type', \
+                                            'Transaction fee' : 'Fees', 'Trade date' : 'Trade Date'}, axis=1)
+    # Adding .NZ suffix for every NZ stock:
+    sharesiesTrades['Ticker'] = np.where(sharesiesTrades['Currency'] == 'NZD', \
+                                        sharesiesTrades['Ticker'] + '.NZ', \
+                                        sharesiesTrades['Ticker'])
 
-    # Reads in deposit data from Sharesies
-    # UNDER CONSTRUCTION
-    pass
+    # Sharesies deposit data(only interested in USD deposits only) is contained in the trade report.
+    sharesiesDeposits = pd.DataFrame(columns=['Date', 'Type', 'USD Quantity', 'NZD Quantity'])
+    # indices of US stocks
+    usStockIndices = sharesiesTrades.index[sharesiesTrades['Currency'] == 'USD']
 
-if hatch and stake:
-    # Combining trades dataframes
-    trades = pd.concat([hatchTrades, stakeTrades], ignore_index=True)
-    # Making Trade date be stored as datetime.
-    trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
+    # Extracting deposit data from sharesies trade report csv file (sharesies does instant transfer to/from USD for each trade):
+    # Saving dates of each US trade.
+    sharesiesDeposits['Date'] = sharesiesTrades.loc[usStockIndices, 'Trade Date']
+    # Classes a buy trade as a deposit and withdrawal OTHERWISE.
+    sharesiesDeposits['Type'] = np.where(sharesiesTrades.loc[usStockIndices, 'Type'] == 'BUY', 'Deposit', 'Withdrawal')
+    # Storing the USD and NZD amounts of each US trade.
+    sharesiesDeposits['USD Quantity'] = sharesiesTrades.loc[usStockIndices, 'Amount']
+    sharesiesDeposits['NZD Quantity'] = np.where(sharesiesTrades.loc[usStockIndices, 'Type'] == 'BUY', \
+                    sharesiesTrades.loc[usStockIndices, 'Amount'] / sharesiesTrades.loc[usStockIndices, 'Exchange rate'], \
+                    sharesiesTrades.loc[usStockIndices, 'Amount'] * sharesiesTrades.loc[usStockIndices, 'Exchange rate'])
+   
+    # Removing useless data from sharesies trade dataframe.
+    sharesiesTrades = sharesiesTrades.drop(['Order ID', 'Market code', 'Amount', 'Transaction method', 'Exchange rate'], \
+                     axis=1)
+    
+    tradesArray.append(sharesiesTrades)
+    depositsArray.append(sharesiesDeposits)
+    
 
-    # Combining deposits dataframes
-    deposits = pd.concat([hatchDeposits, stakeDeposits], ignore_index=True)
-    # Making date be stored as datetime.
-    deposits['Date'] = pd.to_datetime(deposits['Date'])
 
-elif hatch:
-    trades = hatchTrades
-    # Making Trade date be stored as datetime.
-    trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
+trades = pd.concat(tradesArray, ignore_index=True)
+# Making Trade date be stored as datetime.
+trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
 
-    deposits = hatchDeposits
-    # Making date be stored as datetime.
-    deposits['Date'] = pd.to_datetime(deposits['Date'])
-
-elif stake:
-    trades = stakeTrades
-    # Making Trade date be stored as datetime.
-    trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
-
-    deposits = stakeDeposits
-    # Making date be stored as datetime.
-    deposits['Date'] = pd.to_datetime(deposits['Date'])
-
-elif sharesies:
-    # UNDER CONSTRUCTION
-    pass
-
+# Combining deposits dataframes
+deposits = pd.concat(depositsArray, ignore_index=True)
+# Making date be stored as datetime.
+deposits['Date'] = pd.to_datetime(deposits['Date'])
 
 
 # Finding the min date.
-fromDate = deposits['Date'].min()
+fromDate = deposits['Date'].min() if deposits['Date'].min() < trades['Trade Date'].min() else trades['Trade Date'].min()
+
 # Finding today's date.
 todayDate = date.today()
 
