@@ -4,7 +4,7 @@ Currently supports Hatch, Stake and Sharesies. Australian shares on Sharesies ar
 
 I have provided my investment data in the repo to use as an example.
 
-If you want to get the portfolio information for your account(s), follow the below instructions and run the `main.py` script file:
+If you want to get the portfolio information for your account(s), follow the below instructions:
 
 # Hatch instructions:
 For Hatch, trade data is provided in a file you can download off Hatch however, deposit data must be manually filled.
@@ -35,6 +35,18 @@ Go to: Settings -> Reports -> Transaction Report(csv) for the desired date range
 Place file inside Sharesies folder inside Trade Reports folder (Trade Reports -> Sharesies -> "place file").
 
 Delete any other files in the Hatch, Stake and Sharesies folder that is not your data.
+
+# Creating required python environment:
+Assuming you already have python installed, create an environment using anaconda:
+
+```console
+$ conda create --name Portfolio-Tracker --file req.txt
+```
+
+Or you can create a venv environment using the `req.txt` file.
+
+Once the environment is set up you should be able to run the file and get your results.
+
 
 
 **Above info accurate as of 6 July 2022.**
