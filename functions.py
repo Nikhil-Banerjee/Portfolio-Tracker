@@ -4,8 +4,9 @@ import pandas as pd
 import numpy as np
 from glob import glob
 import os
+import yfinance as yf
 
-def hatchRead(tradeFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'order-transaction*.csv')[0],
+def hatchRead(tradeFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'order-transaction*.csv')[-1],
         depositFilePath = glob('trade reports' + os.sep + 'hatch' + os.sep + 'Hatch Deposit Data.csv')[0]):
     """
     - This function reads in all the data from hatch in 2 concise dataframes.
@@ -94,6 +95,14 @@ def stakeRead(filePath = glob('trade reports' + os.sep + 'stake' + os.sep + '*.x
     # Renaming data.
     deposits = deposits.rename({'DATE (US)' : 'Date', 'FUNDING TYPE' : 'Type', 
                                         'RECEIVE AMOUNT (USD)' : 'USD Quantity'}, axis=1)
+    
+    # If NZD quantity purchase not given.
+    if not ('NZD Quantity' in deposits.columns):
+
+        nzdForUSD = yf.download('USDNZD=X', start=deposits.iloc[0]['Date'])['Adj Close']
+        deposits = deposits.merge(nzdForUSD, 'left', 'Date')
+        deposits['NZD Quantity'] = deposits['Adj Close'] * deposits['USD Quantity']
+
     deposits = deposits[['Date', 'Type', 'USD Quantity', 'NZD Quantity']]
 
     return trades, deposits

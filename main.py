@@ -12,7 +12,7 @@ from functions import *
 # Potential problems: 
 # does not take into account non-trade fees (Stake Black).
 # NZ and US dates are taken at face value.
-# NZD cash held in sharesies is not counted as portfolio value.
+# NZD cash held in sharesies is not counted as portfolio value but Hatch and Stake cash is counted.
 # Buy orders before stock splits.
 
 
@@ -50,7 +50,7 @@ if sharesies:
 trades = pd.concat(tradesArray, ignore_index=True)
 trades['Trade Date'] = pd.to_datetime(trades['Trade Date'])
 deposits = pd.concat(depositsArray, ignore_index=True)
-deposits['Date'] = pd.to_datetime(deposits['Date'])
+deposits['Date'] = pd.to_datetime(deposits['Date'], dayfirst=True)
 
 
 # Finding the min date.
@@ -62,7 +62,6 @@ todayDate = date.today()
 # Splitting trades into tradesUS and tradesNZ.
 tradesUS = trades[trades['Currency'] == 'USD'].copy()
 tradesNZ = trades[trades['Currency'] == 'NZD'].copy()
-
 
 
 # Imports USD exchange data.
