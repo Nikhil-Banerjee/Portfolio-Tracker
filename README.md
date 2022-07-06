@@ -2,9 +2,9 @@ The main script creates an all time investment value and profit/loss graph in NZ
 
 Currently supports Hatch, Stake and Sharesies. Australian shares on Sharesies are not yet supported.
 
-I have provided my investment data in the repo to use as an example. Please don't judge my investments...
+I have provided my investment data in the repo to use as an example.
 
-If you want to get the portfolio information for your account(s), follow the below instructions:
+If you want to get the portfolio information for your account(s), follow the below instructions and run the `main.py` script file:
 
 # Hatch instructions:
 For Hatch, trade data is provided in a file you can download off Hatch however, deposit data must be manually filled.
